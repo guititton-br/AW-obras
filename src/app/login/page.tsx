@@ -13,14 +13,12 @@ export default function LoginPage() {
     setLoading(true)
     setErro('')
     const supabase = createClient()
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha })
-    console.log('Login result:', { data, error })
+    const { error } = await supabase.auth.signInWithPassword({ email, password: senha })
     if (error) {
-      setErro('Erro: ' + error.message)
+      setErro('E-mail ou senha incorretos')
       setLoading(false)
     } else {
-      console.log('Redirecting...')
-      window.location.replace('/dashboard')
+      window.location.href = 'https://aw-obras-32ic-hoj18pgv0-sofitel.vercel.app/dashboard'
     }
   }
 
