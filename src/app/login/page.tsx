@@ -13,12 +13,14 @@ export default function LoginPage() {
     setLoading(true)
     setErro('')
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password: senha })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha })
+    console.log('Login result:', { data, error })
     if (error) {
-      setErro('E-mail ou senha incorretos')
+      setErro('Erro: ' + error.message)
       setLoading(false)
     } else {
-      window.location.href = '/dashboard'
+      console.log('Redirecting...')
+      window.location.replace('/dashboard')
     }
   }
 
