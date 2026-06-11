@@ -206,7 +206,7 @@ export default function SetupPage() {
           <div style={{ marginLeft: 'auto' }}>
             <button onClick={() => setShowSetorForm(true)}
               style={{ padding: '7px 16px', borderRadius: '999px', border: 'none', background: '#1A1A1A', color: '#fff', fontFamily: 'inherit', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
-              + Novo Setor
+              + Novo Andar
             </button>
           </div>
         </div>
@@ -360,7 +360,7 @@ export default function SetupPage() {
                 </button>
                 <button type="submit" disabled={saving}
                   style={{ flex: 2, padding: '12px', borderRadius: '12px', border: 'none', background: '#1A1A1A', color: '#fff', fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
-                  {saving ? 'Salvando...' : 'Criar Setor'}
+                  {saving ? 'Salvando...' : 'Criar Andar'}
                 </button>
               </div>
             </form>
@@ -374,7 +374,7 @@ export default function SetupPage() {
           onClick={e => e.target === e.currentTarget && setConfirmDeleteSetor(null)}>
           <div style={{ background: '#fff', borderRadius: '20px', padding: '32px', width: '100%', maxWidth: '400px', boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
             <div style={{ fontSize: '40px', textAlign: 'center', marginBottom: '16px' }}>⚠️</div>
-            <div style={{ fontSize: '18px', fontWeight: 700, color: '#1A1A1A', textAlign: 'center', marginBottom: '8px' }}>Deletar setor?</div>
+            <div style={{ fontSize: '18px', fontWeight: 700, color: '#1A1A1A', textAlign: 'center', marginBottom: '8px' }}>Deletar andar?</div>
             <div style={{ fontSize: '14px', color: '#707070', textAlign: 'center', marginBottom: '24px' }}>
               <strong>{confirmDeleteSetor.nome}</strong> e todos os seus {confirmDeleteSetor.ambientes?.length || 0} setores serão removidos.
             </div>
