@@ -16,8 +16,10 @@ export default function DashboardPage() {
   const [obras, setObras] = useState<Obra[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<Obra | null>(null)
   const [form, setForm] = useState({ nome: '', tipo: 'Hotel', local: '', data_inicio: '', data_entrega: '' })
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => { loadObras() }, [])
 
@@ -33,44 +35,34 @@ export default function DashboardPage() {
     setSaving(true)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      alert('Usuário não autenticado')
-      setSaving(false)
-      return
-    }
+    if (!user) { alert('Não autenticado'); setSaving(false); return }
 
     const { data: obra, error } = await supabase.from('obras').insert({
-      nome: form.nome,
-      tipo: form.tipo,
-      local: form.local,
+      nome: form.nome, tipo: form.tipo, local: form.local,
       data_inicio: form.data_inicio || null,
       data_entrega: form.data_entrega || null,
-      pct_avanco: 0,
-      status: 'ok'
+      pct_avanco: 0, status: 'ok'
     }).select().single()
 
-    if (error) {
-      alert('Erro ao salvar obra: ' + error.message)
-      setSaving(false)
-      return
-    }
+    if (error) { alert('Erro: ' + error.message); setSaving(false); return }
 
-    const { error: error2 } = await supabase.from('usuarios_obras').insert({
-      usuario_id: user.id,
-      obra_id: obra.id
-    })
-
-    if (error2) {
-      alert('Erro ao vincular obra: ' + error2.message)
-      setSaving(false)
-      return
-    }
-
+    await supabase.from('usuarios_obras').insert({ usuario_id: user.id, obra_id: obra.id })
     setShowForm(false)
     setForm({ nome: '', tipo: 'Hotel', local: '', data_inicio: '', data_entrega: '' })
     loadObras()
     setSaving(false)
+  }
+
+  async function handleDelete() {
+    if (!confirmDelete) return
+    setDeleting(true)
+    const supabase = createClient()
+    await supabase.from('usuarios_obras').delete().eq('obra_id', confirmDelete.id)
+    const { error } = await supabase.from('obras').delete().eq('id', confirmDelete.id)
+    if (error) { alert('Erro ao deletar: ' + error.message) }
+    setConfirmDelete(null)
+    setDeleting(false)
+    loadObras()
   }
 
   async function handleLogout() {
@@ -105,8 +97,7 @@ export default function DashboardPage() {
           ].map(item => (
             <a key={item.href} href={item.href} style={{
               display: 'flex', alignItems: 'center', gap: '10px',
-              padding: '9px 10px', borderRadius: '8px',
-              fontSize: '13px', fontWeight: 500,
+              padding: '9px 10px', borderRadius: '8px', fontSize: '13px', fontWeight: 500,
               color: item.active ? '#fff' : '#707070',
               background: item.active ? '#1A1A1A' : 'transparent',
               marginBottom: '1px', textDecoration: 'none'
@@ -134,7 +125,7 @@ export default function DashboardPage() {
       {/* MAIN */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ height: '56px', flexShrink: 0, background: '#fff', borderBottom: '1px solid #E8E8E8', display: 'flex', alignItems: 'center', padding: '0 28px', gap: '12px' }}>
-          <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', letterSpacing: '-.3px' }}>Dashboard</div>
+          <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A' }}>Dashboard</div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ fontSize: '12px', color: '#A0A0A0', padding: '5px 12px', borderRadius: '999px', border: '1px solid #E8E8E8', background: '#F5F5F5' }}>
               {new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })}
@@ -164,17 +155,25 @@ export default function DashboardPage() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '12px' }}>
                 {obras.map(obra => (
-                  <div key={obra.id} style={{ background: '#fff', borderRadius: '16px', border: '1px solid #EFEFEF', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,.04)' }}>
+                  <div key={obra.id} style={{ background: '#fff', borderRadius: '16px', border: '1px solid #EFEFEF', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,.04)', position: 'relative' }}>
                     <div style={{ height: '4px', background: statusColor(obra.pct_avanco) }} />
                     <div style={{ padding: '20px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                        <div>
+                        <div style={{ flex: 1, paddingRight: '8px' }}>
                           <div style={{ fontSize: '17px', fontWeight: 700, color: '#1A1A1A' }}>{obra.nome}</div>
                           <div style={{ fontSize: '12px', color: '#A0A0A0', marginTop: '3px' }}>{obra.tipo}{obra.local ? ' · ' + obra.local : ''}</div>
                         </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: '32px', fontWeight: 700, color: statusColor(obra.pct_avanco) }}>{obra.pct_avanco}%</div>
-                          <div style={{ fontSize: '10px', color: '#A0A0A0', textTransform: 'uppercase' }}>Avanço</div>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', flexShrink: 0 }}>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '32px', fontWeight: 700, color: statusColor(obra.pct_avanco) }}>{obra.pct_avanco}%</div>
+                            <div style={{ fontSize: '10px', color: '#A0A0A0', textTransform: 'uppercase' }}>Avanço</div>
+                          </div>
+                          <button
+                            onClick={() => setConfirmDelete(obra)}
+                            title="Deletar obra"
+                            style={{ width: '28px', height: '28px', borderRadius: '50%', border: 'none', background: '#FDECEA', color: '#D95F5F', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '4px' }}>
+                            🗑
+                          </button>
                         </div>
                       </div>
                       <div style={{ height: '3px', background: '#F5F5F5', borderRadius: '2px', overflow: 'hidden', marginBottom: '10px' }}>
@@ -259,6 +258,31 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* MODAL CONFIRMAR DELETE */}
+      {confirmDelete && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={e => e.target === e.currentTarget && setConfirmDelete(null)}>
+          <div style={{ background: '#fff', borderRadius: '20px', padding: '32px', width: '100%', maxWidth: '400px', boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
+            <div style={{ fontSize: '40px', textAlign: 'center', marginBottom: '16px' }}>🗑</div>
+            <div style={{ fontSize: '18px', fontWeight: 700, color: '#1A1A1A', textAlign: 'center', marginBottom: '8px' }}>Deletar obra?</div>
+            <div style={{ fontSize: '14px', color: '#707070', textAlign: 'center', marginBottom: '24px' }}>
+              Tem certeza que deseja deletar <strong>{confirmDelete.nome}</strong>? Esta ação não pode ser desfeita.
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => setConfirmDelete(null)}
+                style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid #E8E8E8', background: '#F5F5F5', fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, color: '#707070', cursor: 'pointer' }}>
+                Cancelar
+              </button>
+              <button onClick={handleDelete} disabled={deleting}
+                style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: deleting ? '#A0A0A0' : '#D95F5F', color: '#fff', fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, cursor: deleting ? 'not-allowed' : 'pointer' }}>
+                {deleting ? 'Deletando...' : 'Sim, deletar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
