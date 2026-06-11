@@ -206,10 +206,12 @@ export default function SetupPage() {
           <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A' }}>Setup da Obra</div>
           <div style={{ fontSize: '13px', color: '#A0A0A0' }}>{obraAtiva?.nome}</div>
           <div style={{ marginLeft: 'auto' }}>
-            <button onClick={() => setShowSetorForm(true)}
-              style={{ padding: '7px 16px', borderRadius: '999px', border: 'none', background: '#1A1A1A', color: '#fff', fontFamily: 'inherit', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
-              + Novo Andar
-            </button>
+            {setores.length > 0 && (
+              <button onClick={() => setShowSetorForm(true)}
+                style={{ padding: '7px 16px', borderRadius: '999px', border: 'none', background: '#1A1A1A', color: '#fff', fontFamily: 'inherit', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                + Novo Andar
+              </button>
+            )}
           </div>
         </div>
 
