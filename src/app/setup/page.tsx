@@ -153,16 +153,20 @@ export default function SetupPage() {
           <div style={{ fontSize: '10px', color: '#A0A0A0', letterSpacing: '1px', textTransform: 'uppercase', marginTop: '2px' }}>Gestão de Obras</div>
         </div>
 
-        {/* Seletor de obra */}
-        {obras.length > 1 && (
-          <div style={{ padding: '10px 12px', borderBottom: '1px solid #EFEFEF' }}>
-            <div style={{ fontSize: '9px', fontWeight: 600, color: '#A0A0A0', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Obra</div>
+        {/* Seletor de obra — sempre visível */}
+        <div style={{ padding: '10px 12px', borderBottom: '1px solid #EFEFEF' }}>
+          <div style={{ fontSize: '9px', fontWeight: 600, color: '#A0A0A0', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Obra ativa</div>
+          {obras.length > 0 ? (
             <select value={obraAtiva?.id || ''} onChange={e => setObraAtiva(obras.find(o => o.id === e.target.value) || null)}
               style={{ width: '100%', padding: '6px 10px', border: '1px solid #E8E8E8', borderRadius: '8px', fontFamily: 'inherit', fontSize: '12px', outline: 'none', background: '#F5F5F5' }}>
               {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
             </select>
-          </div>
-        )}
+          ) : (
+            <a href="/dashboard" style={{ fontSize: '12px', color: '#D4930A', fontWeight: 500 }}>
+              ← Cadastre uma obra primeiro
+            </a>
+          )}
+        </div>
 
         <nav style={{ flex: 1, padding: '8px 10px', overflowY: 'auto' }}>
           <div style={{ fontSize: '9px', fontWeight: 600, color: '#A0A0A0', textTransform: 'uppercase', letterSpacing: '1.2px', padding: '10px 10px 4px' }}>Principal</div>
@@ -233,31 +237,18 @@ export default function SetupPage() {
           ) : setores.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px 0' }}>
               <div style={{ fontSize: '40px', marginBottom: '16px' }}>🏗</div>
-              <div style={{ fontSize: '18px', fontWeight: 700, color: '#1A1A1A', marginBottom: '8px' }}>Nenhum setor cadastrado</div>
+              <div style={{ fontSize: '18px', fontWeight: 700, color: '#1A1A1A', marginBottom: '8px' }}>Nenhum andar cadastrado</div>
               <div style={{ fontSize: '14px', color: '#A0A0A0', marginBottom: '24px' }}>
-                Adicione setores — podem ser andares, fases, blocos ou qualquer divisão que faça sentido para esta obra
+                Adicione os andares desta obra — dentro de cada andar você cadastrará os setores (quartos, salas, ambientes)
               </div>
               <button onClick={() => setShowSetorForm(true)}
                 style={{ padding: '11px 24px', borderRadius: '999px', border: 'none', background: '#1A1A1A', color: '#fff', fontFamily: 'inherit', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
-                + Novo Setor
+                + Novo Andar
               </button>
             </div>
           ) : (
             <div>
-              {/* RESUMO */}
-              <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
-                {[
-                  { val: setores.length, label: 'Setores' },
-                  { val: setores.reduce((a, s) => a + (s.ambientes?.length || 0), 0), label: 'Ambientes' },
-                ].map(stat => (
-                  <div key={stat.label} style={{ padding: '14px 20px', background: '#fff', borderRadius: '12px', border: '1px solid #EFEFEF', textAlign: 'center' }}>
-                    <div style={{ fontSize: '28px', fontWeight: 700, color: '#1A1A1A', letterSpacing: '-1px' }}>{stat.val}</div>
-                    <div style={{ fontSize: '11px', color: '#A0A0A0', textTransform: 'uppercase', letterSpacing: '.5px', marginTop: '2px' }}>{stat.label}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* SETORES */}
+              {/* ANDARES */}
               {setores.map(setor => (
                 <div key={setor.id} style={{ background: '#fff', borderRadius: '16px', border: '1px solid #EFEFEF', marginBottom: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,.04)' }}>
                   {/* Header setor */}
@@ -265,12 +256,12 @@ export default function SetupPage() {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: '15px', fontWeight: 700, color: '#1A1A1A' }}>{setor.nome}</div>
                       <div style={{ fontSize: '11px', color: '#A0A0A0', marginTop: '2px' }}>
-                        {setor.ambientes?.length || 0} {setor.tipo_unidade.toLowerCase()}{(setor.ambientes?.length || 0) !== 1 ? 's' : ''}
+                        {setor.ambientes?.length || 0} setor{(setor.ambientes?.length || 0) !== 1 ? 'es' : ''} cadastrado{(setor.ambientes?.length || 0) !== 1 ? 's' : ''}
                       </div>
                     </div>
                     <button onClick={() => { setShowAmbForm(setor.id); setAmbForm({ codigos: '' }) }}
                       style={{ padding: '5px 12px', borderRadius: '999px', border: '1px solid #E8E8E8', background: '#F5F5F5', fontFamily: 'inherit', fontSize: '11px', fontWeight: 600, color: '#707070', cursor: 'pointer' }}>
-                      + {setor.tipo_unidade}
+                      + Setor
                     </button>
                     <button onClick={() => setConfirmDeleteSetor(setor)}
                       style={{ width: '28px', height: '28px', borderRadius: '50%', border: 'none', background: '#FDECEA', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -295,7 +286,7 @@ export default function SetupPage() {
                       </div>
                     ) : (
                       <div style={{ fontSize: '12px', color: '#A0A0A0', fontStyle: 'italic' }}>
-                        Nenhum {setor.tipo_unidade.toLowerCase()} cadastrado — clique em "+ {setor.tipo_unidade}" para adicionar
+                        Nenhum setor cadastrado — clique em "+ Setor" para adicionar
                       </div>
                     )}
 
@@ -303,7 +294,7 @@ export default function SetupPage() {
                     {showAmbForm === setor.id && (
                       <form onSubmit={e => handleAddAmbientes(e, setor.id)} style={{ marginTop: '12px', padding: '14px', background: '#F5F5F5', borderRadius: '12px' }}>
                         <div style={{ fontSize: '11px', fontWeight: 600, color: '#707070', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: '8px' }}>
-                          Adicionar {setor.tipo_unidade}s
+                          Adicionar Setores
                         </div>
                         <textarea
                           value={ambForm.codigos}
@@ -322,7 +313,7 @@ export default function SetupPage() {
                           </button>
                           <button type="submit" disabled={saving}
                             style={{ flex: 2, padding: '8px', borderRadius: '8px', border: 'none', background: '#1A1A1A', color: '#fff', fontFamily: 'inherit', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
-                            {saving ? 'Salvando...' : `Adicionar ${setor.tipo_unidade}s`}
+                            {saving ? 'Salvando...' : 'Adicionar Setores'}
                           </button>
                         </div>
                       </form>
@@ -342,15 +333,15 @@ export default function SetupPage() {
           <div style={{ background: '#fff', borderRadius: '20px', padding: '32px', width: '100%', maxWidth: '440px', boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
               <div>
-                <div style={{ fontSize: '18px', fontWeight: 700, color: '#1A1A1A' }}>Novo Setor</div>
-                <div style={{ fontSize: '13px', color: '#A0A0A0', marginTop: '2px' }}>Pode ser um andar, fase, bloco ou qualquer divisão</div>
+                <div style={{ fontSize: '18px', fontWeight: 700, color: '#1A1A1A' }}>Novo Andar</div>
+                <div style={{ fontSize: '13px', color: '#A0A0A0', marginTop: '2px' }}>Define o andar da obra — os setores serão cadastrados dentro dele</div>
               </div>
               <button onClick={() => setShowSetorForm(false)} style={{ width: '28px', height: '28px', borderRadius: '50%', border: 'none', background: '#F5F5F5', cursor: 'pointer', fontSize: '14px', color: '#707070' }}>✕</button>
             </div>
             <form onSubmit={handleAddSetor}>
               <div style={{ marginBottom: '16px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: '#707070', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: '6px' }}>Nome do Setor</div>
-                <input type="text" required placeholder="Ex: 8º Andar, Fase A, Bloco Norte"
+                <div style={{ fontSize: '11px', fontWeight: 600, color: '#707070', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: '6px' }}>Nome do Andar</div>
+                <input type="text" required placeholder="Ex: 8º Andar, 9º Andar, Subsolo..."
                   value={setorForm.nome} onChange={e => setSetorForm(f => ({ ...f, nome: e.target.value }))}
                   style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #E8E8E8', borderRadius: '12px', fontFamily: 'inherit', fontSize: '14px', outline: 'none' }} />
               </div>
@@ -360,7 +351,7 @@ export default function SetupPage() {
                   style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #E8E8E8', borderRadius: '12px', fontFamily: 'inherit', fontSize: '14px', outline: 'none', background: '#fff' }}>
                   {TIPOS_UNIDADE.map(t => <option key={t}>{t}</option>)}
                 </select>
-                <div style={{ fontSize: '11px', color: '#A0A0A0', marginTop: '4px' }}>Como cada espaço dentro deste setor será chamado</div>
+                <div style={{ fontSize: '11px', color: '#A0A0A0', marginTop: '4px' }}>Como cada espaço dentro deste andar será chamado</div>
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button type="button" onClick={() => setShowSetorForm(false)}
@@ -385,7 +376,7 @@ export default function SetupPage() {
             <div style={{ fontSize: '40px', textAlign: 'center', marginBottom: '16px' }}>⚠️</div>
             <div style={{ fontSize: '18px', fontWeight: 700, color: '#1A1A1A', textAlign: 'center', marginBottom: '8px' }}>Deletar setor?</div>
             <div style={{ fontSize: '14px', color: '#707070', textAlign: 'center', marginBottom: '24px' }}>
-              <strong>{confirmDeleteSetor.nome}</strong> e todos os seus {confirmDeleteSetor.ambientes?.length || 0} ambientes serão removidos.
+              <strong>{confirmDeleteSetor.nome}</strong> e todos os seus {confirmDeleteSetor.ambientes?.length || 0} setores serão removidos.
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => setConfirmDeleteSetor(null)}
