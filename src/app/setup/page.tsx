@@ -30,6 +30,7 @@ export default function SetupPage() {
   const [setores, setSetores] = useState<Setor[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [setoresLoaded, setSetoresLoaded] = useState(false)
 
   // Novo setor
   const [showSetorForm, setShowSetorForm] = useState(false)
@@ -43,7 +44,7 @@ export default function SetupPage() {
   const [confirmDeleteSetor, setConfirmDeleteSetor] = useState<Setor | null>(null)
 
   useEffect(() => { loadObras() }, [])
-  useEffect(() => { if (obraAtiva) loadSetores() }, [obraAtiva])
+  useEffect(() => { if (obraAtiva) { setSetoresLoaded(false); loadSetores() } }, [obraAtiva])
 
   async function loadObras() {
     const supabase = createClient()
@@ -70,6 +71,7 @@ export default function SetupPage() {
       ambientes: (ambientesData || []).filter(a => a.setor_id === s.id)
     }))
     setSetores(setoresComAmb)
+    setSetoresLoaded(true)
   }
 
   async function handleAddSetor(e: React.FormEvent) {
