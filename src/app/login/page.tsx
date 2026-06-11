@@ -13,12 +13,15 @@ export default function LoginPage() {
     setLoading(true)
     setErro('')
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password: senha })
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password: senha
+    })
     if (error) {
       setErro('E-mail ou senha incorretos')
       setLoading(false)
     } else {
-      window.location.href = 'https://aw-obras-32ic-hoj18pgv0-sofitel.vercel.app/dashboard'
+      window.location.href = '/dashboard'
     }
   }
 
@@ -40,7 +43,11 @@ export default function LoginPage() {
             <input type="password" value={senha} onChange={e => setSenha(e.target.value)} required
               style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #E8E8E8', borderRadius: '12px', fontSize: '14px', outline: 'none', fontFamily: 'inherit' }} />
           </div>
-          {erro && <div style={{ background: '#FDECEA', color: '#943030', padding: '10px', borderRadius: '8px', fontSize: '13px', marginBottom: '16px' }}>{erro}</div>}
+          {erro && (
+            <div style={{ background: '#FDECEA', color: '#943030', padding: '10px', borderRadius: '8px', fontSize: '13px', marginBottom: '16px' }}>
+              {erro}
+            </div>
+          )}
           <button type="submit" disabled={loading}
             style={{ width: '100%', padding: '13px', background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {loading ? 'Entrando...' : 'Entrar'}
