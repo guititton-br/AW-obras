@@ -1,36 +1,247 @@
+'use client'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
+
+interface Obra {
+  id: string
+  nome: string
+  tipo: string
+  local: string
+  pct_avanco: number
+  status: string
+  data_entrega: string
+}
+
 export default function DashboardPage() {
+  const [obras, setObras] = useState<Obra[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ nome: '', tipo: 'Hotel', local: '', data_inicio: '', data_entrega: '' })
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    loadObras()
+  }, [])
+
+  async function loadObras() {
+    const supabase = createClient()
+    const { data } = await supabase.from('obras').select('*').order('created_at', { ascending: false })
+    setObras(data || [])
+    setLoading(false)
+  }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    const { data: obra, error } = await supabase.from('obras').insert({
+      nome: form.nome,
+      tipo: form.tipo,
+      local: form.local,
+      data_inicio: form.data_inicio || null,
+      data_entrega: form.data_entrega || null,
+      pct_avanco: 0,
+      status: 'ok'
+    }).select().single()
+
+    if (!error && obra && user) {
+      await supabase.from('usuarios_obras').insert({ usuario_id: user.id, obra_id: obra.id })
+      setShowForm(false)
+      setForm({ nome: '', tipo: 'Hotel', local: '', data_inicio: '', data_entrega: '' })
+      loadObras()
+    }
+    setSaving(false)
+  }
+
+  async function handleLogout() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
+
+  const statusColor = (pct: number) => pct >= 70 ? '#3DAB6E' : pct >= 40 ? '#D4930A' : '#D95F5F'
+  const statusLabel = (s: string) => s === 'ok' ? 'Em dia' : s === 'warn' ? 'Atenção' : 'Alerta'
+  const statusBg = (s: string) => s === 'ok' ? '#E8F5EE' : s === 'warn' ? '#FDF5E6' : '#FDECEA'
+  const statusTxt = (s: string) => s === 'ok' ? '#1B6E40' : s === 'warn' ? '#7A5200' : '#943030'
+
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <aside style={{ width: '220px', background: '#fff', borderRight: '1px solid #E8E8E8', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '22px 20px', borderBottom: '1px solid #EFEFEF' }}>
-          <div style={{ fontSize: '16px', fontWeight: 700 }}>AW | OBRAS</div>
-          <div style={{ fontSize: '10px', color: '#A0A0A0', marginTop: '2px' }}>GESTÃO DE OBRAS</div>
-        </div>
-        <nav style={{ flex: 1, padding: '8px 10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', borderRadius: '8px', background: '#1A1A1A', color: '#fff', fontSize: '13px', fontWeight: 500, marginBottom: '1px' }}>
-            <span>📊</span> Dashboard
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: '-apple-system, BlinkMacSystemFont, Inter, sans-serif' }}>
+      
+      {/* SIDEBAR */}
+      <aside style={{ width: '220px', flexShrink: 0, background: '#fff', borderRight: '1px solid #E8E8E8', display: 'flex', flexDirection: 'column', height: '100vh' }}>
+        <div style={{ padding: '22px 20px 18px', borderBottom: '1px solid #EFEFEF' }}>
+          <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A' }}>
+            AW <span style={{ color: '#D0D0D0', fontWeight: 300, margin: '0 3px' }}>|</span> OBRAS
           </div>
-          <a href="/reuniao" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', borderRadius: '8px', color: '#707070', fontSize: '13px', fontWeight: 500, marginBottom: '1px', textDecoration: 'none' }}>
-            <span>📅</span> Reunião Semanal
-          </a>
-          <a href="/efetivo" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', borderRadius: '8px', color: '#707070', fontSize: '13px', fontWeight: 500, marginBottom: '1px', textDecoration: 'none' }}>
-            <span>👷</span> Efetivo OnTime
-          </a>
-          <a href="/setup" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', borderRadius: '8px', color: '#707070', fontSize: '13px', fontWeight: 500, marginBottom: '1px', textDecoration: 'none' }}>
+          <div style={{ fontSize: '10px', color: '#A0A0A0', letterSpacing: '1px', textTransform: 'uppercase', marginTop: '2px' }}>Gestão de Obras</div>
+        </div>
+        <nav style={{ flex: 1, padding: '8px 10px', overflowY: 'auto' }}>
+          <div style={{ fontSize: '9px', fontWeight: 600, color: '#A0A0A0', textTransform: 'uppercase', letterSpacing: '1.2px', padding: '10px 10px 4px' }}>Principal</div>
+          {[
+            { icon: '📊', label: 'Dashboard', href: '/dashboard', active: true },
+            { icon: '📅', label: 'Reunião Semanal', href: '/reuniao', active: false },
+            { icon: '📱', label: 'Reporte do Mestre', href: '/mestre', active: false },
+            { icon: '👷', label: 'Efetivo OnTime', href: '/efetivo', active: false },
+          ].map(item => (
+            <a key={item.href} href={item.href} style={{
+              display: 'flex', alignItems: 'center', gap: '10px',
+              padding: '9px 10px', borderRadius: '8px',
+              fontSize: '13px', fontWeight: 500,
+              color: item.active ? '#fff' : '#707070',
+              background: item.active ? '#1A1A1A' : 'transparent',
+              marginBottom: '1px', textDecoration: 'none', transition: 'all .15s'
+            }}>
+              <span style={{ width: '18px', textAlign: 'center' }}>{item.icon}</span>
+              {item.label}
+            </a>
+          ))}
+          <div style={{ fontSize: '9px', fontWeight: 600, color: '#A0A0A0', textTransform: 'uppercase', letterSpacing: '1.2px', padding: '10px 10px 4px', marginTop: '8px' }}>Configuração</div>
+          <a href="/setup" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', borderRadius: '8px', fontSize: '13px', fontWeight: 500, color: '#707070', textDecoration: 'none' }}>
             <span>⚙️</span> Setup da Obra
           </a>
         </nav>
-      </aside>
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ height: '56px', background: '#fff', borderBottom: '1px solid #E8E8E8', display: 'flex', alignItems: 'center', padding: '0 28px' }}>
-          <div style={{ fontSize: '16px', fontWeight: 700 }}>Dashboard</div>
+        <div style={{ padding: '14px 16px', borderTop: '1px solid #EFEFEF' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} onClick={handleLogout}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#1A1A1A', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 600 }}>GT</div>
+            <div>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: '#1A1A1A' }}>Sair</div>
+              <div style={{ fontSize: '10px', color: '#A0A0A0' }}>Clique para sair</div>
+            </div>
+          </div>
         </div>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ fontSize: '40px' }}>🏗</div>
-          <div style={{ fontSize: '18px', fontWeight: 600 }}>AW | Obras funcionando!</div>
-          <div style={{ fontSize: '14px', color: '#A0A0A0' }}>Sistema no ar — próximo passo: cadastrar obras</div>
+      </aside>
+
+      {/* MAIN */}
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        
+        {/* TOPBAR */}
+        <div style={{ height: '56px', flexShrink: 0, background: '#fff', borderBottom: '1px solid #E8E8E8', display: 'flex', alignItems: 'center', padding: '0 28px', gap: '12px' }}>
+          <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', letterSpacing: '-.3px' }}>Dashboard</div>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ fontSize: '12px', color: '#A0A0A0', padding: '5px 12px', borderRadius: '999px', border: '1px solid #E8E8E8', background: '#F5F5F5' }}>
+              {new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })}
+            </div>
+            <button onClick={() => setShowForm(true)} style={{ padding: '7px 16px', borderRadius: '999px', border: 'none', background: '#1A1A1A', color: '#fff', fontFamily: 'inherit', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+              + Nova Obra
+            </button>
+          </div>
+        </div>
+
+        {/* CONTENT */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '32px 36px' }}>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '80px 0', color: '#A0A0A0' }}>Carregando...</div>
+          ) : obras.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '80px 0' }}>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏗</div>
+              <div style={{ fontSize: '20px', fontWeight: 700, color: '#1A1A1A', marginBottom: '8px' }}>Nenhuma obra cadastrada</div>
+              <div style={{ fontSize: '14px', color: '#A0A0A0', marginBottom: '24px' }}>Comece criando sua primeira obra</div>
+              <button onClick={() => setShowForm(true)} style={{ padding: '11px 24px', borderRadius: '999px', border: 'none', background: '#1A1A1A', color: '#fff', fontFamily: 'inherit', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
+                + Nova Obra
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: '#A0A0A0', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px' }}>
+                {obras.length} obra{obras.length > 1 ? 's' : ''} ativa{obras.length > 1 ? 's' : ''}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '12px' }}>
+                {obras.map(obra => (
+                  <div key={obra.id} style={{ background: '#fff', borderRadius: '16px', border: '1px solid #EFEFEF', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,.04)', cursor: 'pointer', transition: 'all .2s' }}>
+                    <div style={{ height: '4px', background: statusColor(obra.pct_avanco) }} />
+                    <div style={{ padding: '20px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                        <div>
+                          <div style={{ fontSize: '17px', fontWeight: 700, color: '#1A1A1A', letterSpacing: '-.3px' }}>{obra.nome}</div>
+                          <div style={{ fontSize: '12px', color: '#A0A0A0', marginTop: '3px' }}>{obra.tipo}{obra.local ? ' · ' + obra.local : ''}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '32px', fontWeight: 700, letterSpacing: '-1px', color: statusColor(obra.pct_avanco) }}>{obra.pct_avanco}%</div>
+                          <div style={{ fontSize: '10px', color: '#A0A0A0', textTransform: 'uppercase', letterSpacing: '.5px' }}>Avanço</div>
+                        </div>
+                      </div>
+                      <div style={{ height: '3px', background: '#F5F5F5', borderRadius: '2px', overflow: 'hidden', marginBottom: '10px' }}>
+                        <div style={{ height: '100%', borderRadius: '2px', background: statusColor(obra.pct_avanco), width: `${obra.pct_avanco}%` }} />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        {obra.data_entrega && (
+                          <div style={{ fontSize: '11px', color: '#A0A0A0' }}>
+                            Entrega: {new Date(obra.data_entrega).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
+                          </div>
+                        )}
+                        <div style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '999px', background: statusBg(obra.status), color: statusTxt(obra.status) }}>
+                          {statusLabel(obra.status)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </main>
+
+      {/* MODAL NOVA OBRA */}
+      {showForm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.target === e.currentTarget && setShowForm(false)}>
+          <div style={{ background: '#fff', borderRadius: '20px', padding: '32px', width: '100%', maxWidth: '480px', boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+              <div>
+                <div style={{ fontSize: '18px', fontWeight: 700, color: '#1A1A1A' }}>Nova Obra</div>
+                <div style={{ fontSize: '13px', color: '#A0A0A0', marginTop: '2px' }}>Cadastre uma nova obra no sistema</div>
+              </div>
+              <button onClick={() => setShowForm(false)} style={{ width: '28px', height: '28px', borderRadius: '50%', border: 'none', background: '#F5F5F5', cursor: 'pointer', fontSize: '14px', color: '#707070' }}>✕</button>
+            </div>
+            <form onSubmit={handleSave}>
+              {[
+                { label: 'Nome da Obra', key: 'nome', type: 'text', placeholder: 'Ex: Hotel Grand Splendor', required: true },
+                { label: 'Cidade / Estado', key: 'local', type: 'text', placeholder: 'Ex: São Paulo, SP', required: false },
+              ].map(field => (
+                <div key={field.key} style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#707070', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: '6px' }}>{field.label}</div>
+                  <input type={field.type} required={field.required} placeholder={field.placeholder}
+                    value={(form as any)[field.key]} onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
+                    style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #E8E8E8', borderRadius: '12px', fontFamily: 'inherit', fontSize: '14px', outline: 'none' }} />
+                </div>
+              ))}
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: '#707070', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: '6px' }}>Tipo de Obra</div>
+                <select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}
+                  style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #E8E8E8', borderRadius: '12px', fontFamily: 'inherit', fontSize: '14px', outline: 'none', background: '#fff' }}>
+                  {['Hotel', 'Corporativo', 'Residencial', 'Retrofit', 'Varejo', 'Saúde', 'Industrial', 'Outro'].map(t => (
+                    <option key={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
+                {[
+                  { label: 'Data de Início', key: 'data_inicio' },
+                  { label: 'Previsão de Entrega', key: 'data_entrega' },
+                ].map(field => (
+                  <div key={field.key}>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#707070', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: '6px' }}>{field.label}</div>
+                    <input type="date" value={(form as any)[field.key]} onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
+                      style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #E8E8E8', borderRadius: '12px', fontFamily: 'inherit', fontSize: '14px', outline: 'none' }} />
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button type="button" onClick={() => setShowForm(false)}
+                  style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid #E8E8E8', background: '#F5F5F5', fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, color: '#707070', cursor: 'pointer' }}>
+                  Cancelar
+                </button>
+                <button type="submit" disabled={saving}
+                  style={{ flex: 2, padding: '12px', borderRadius: '12px', border: 'none', background: '#1A1A1A', color: '#fff', fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+                  {saving ? 'Salvando...' : 'Cadastrar Obra'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
