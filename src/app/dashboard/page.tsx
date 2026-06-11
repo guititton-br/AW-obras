@@ -19,9 +19,7 @@ export default function DashboardPage() {
   const [form, setForm] = useState({ nome: '', tipo: 'Hotel', local: '', data_inicio: '', data_entrega: '' })
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    loadObras()
-  }, [])
+  useEffect(() => { loadObras() }, [])
 
   async function loadObras() {
     const supabase = createClient()
@@ -35,7 +33,13 @@ export default function DashboardPage() {
     setSaving(true)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    
+
+    if (!user) {
+      alert('Usuário não autenticado')
+      setSaving(false)
+      return
+    }
+
     const { data: obra, error } = await supabase.from('obras').insert({
       nome: form.nome,
       tipo: form.tipo,
@@ -46,12 +50,26 @@ export default function DashboardPage() {
       status: 'ok'
     }).select().single()
 
-    if (!error && obra && user) {
-      await supabase.from('usuarios_obras').insert({ usuario_id: user.id, obra_id: obra.id })
-      setShowForm(false)
-      setForm({ nome: '', tipo: 'Hotel', local: '', data_inicio: '', data_entrega: '' })
-      loadObras()
+    if (error) {
+      alert('Erro ao salvar obra: ' + error.message)
+      setSaving(false)
+      return
     }
+
+    const { error: error2 } = await supabase.from('usuarios_obras').insert({
+      usuario_id: user.id,
+      obra_id: obra.id
+    })
+
+    if (error2) {
+      alert('Erro ao vincular obra: ' + error2.message)
+      setSaving(false)
+      return
+    }
+
+    setShowForm(false)
+    setForm({ nome: '', tipo: 'Hotel', local: '', data_inicio: '', data_entrega: '' })
+    loadObras()
     setSaving(false)
   }
 
@@ -68,7 +86,7 @@ export default function DashboardPage() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: '-apple-system, BlinkMacSystemFont, Inter, sans-serif' }}>
-      
+
       {/* SIDEBAR */}
       <aside style={{ width: '220px', flexShrink: 0, background: '#fff', borderRight: '1px solid #E8E8E8', display: 'flex', flexDirection: 'column', height: '100vh' }}>
         <div style={{ padding: '22px 20px 18px', borderBottom: '1px solid #EFEFEF' }}>
@@ -91,7 +109,7 @@ export default function DashboardPage() {
               fontSize: '13px', fontWeight: 500,
               color: item.active ? '#fff' : '#707070',
               background: item.active ? '#1A1A1A' : 'transparent',
-              marginBottom: '1px', textDecoration: 'none', transition: 'all .15s'
+              marginBottom: '1px', textDecoration: 'none'
             }}>
               <span style={{ width: '18px', textAlign: 'center' }}>{item.icon}</span>
               {item.label}
@@ -115,8 +133,6 @@ export default function DashboardPage() {
 
       {/* MAIN */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        
-        {/* TOPBAR */}
         <div style={{ height: '56px', flexShrink: 0, background: '#fff', borderBottom: '1px solid #E8E8E8', display: 'flex', alignItems: 'center', padding: '0 28px', gap: '12px' }}>
           <div style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', letterSpacing: '-.3px' }}>Dashboard</div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -129,7 +145,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* CONTENT */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '32px 36px' }}>
           {loading ? (
             <div style={{ textAlign: 'center', padding: '80px 0', color: '#A0A0A0' }}>Carregando...</div>
@@ -149,17 +164,17 @@ export default function DashboardPage() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '12px' }}>
                 {obras.map(obra => (
-                  <div key={obra.id} style={{ background: '#fff', borderRadius: '16px', border: '1px solid #EFEFEF', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,.04)', cursor: 'pointer', transition: 'all .2s' }}>
+                  <div key={obra.id} style={{ background: '#fff', borderRadius: '16px', border: '1px solid #EFEFEF', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,.04)' }}>
                     <div style={{ height: '4px', background: statusColor(obra.pct_avanco) }} />
                     <div style={{ padding: '20px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                         <div>
-                          <div style={{ fontSize: '17px', fontWeight: 700, color: '#1A1A1A', letterSpacing: '-.3px' }}>{obra.nome}</div>
+                          <div style={{ fontSize: '17px', fontWeight: 700, color: '#1A1A1A' }}>{obra.nome}</div>
                           <div style={{ fontSize: '12px', color: '#A0A0A0', marginTop: '3px' }}>{obra.tipo}{obra.local ? ' · ' + obra.local : ''}</div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: '32px', fontWeight: 700, letterSpacing: '-1px', color: statusColor(obra.pct_avanco) }}>{obra.pct_avanco}%</div>
-                          <div style={{ fontSize: '10px', color: '#A0A0A0', textTransform: 'uppercase', letterSpacing: '.5px' }}>Avanço</div>
+                          <div style={{ fontSize: '32px', fontWeight: 700, color: statusColor(obra.pct_avanco) }}>{obra.pct_avanco}%</div>
+                          <div style={{ fontSize: '10px', color: '#A0A0A0', textTransform: 'uppercase' }}>Avanço</div>
                         </div>
                       </div>
                       <div style={{ height: '3px', background: '#F5F5F5', borderRadius: '2px', overflow: 'hidden', marginBottom: '10px' }}>
@@ -186,7 +201,8 @@ export default function DashboardPage() {
 
       {/* MODAL NOVA OBRA */}
       {showForm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.target === e.currentTarget && setShowForm(false)}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={e => e.target === e.currentTarget && setShowForm(false)}>
           <div style={{ background: '#fff', borderRadius: '20px', padding: '32px', width: '100%', maxWidth: '480px', boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
               <div>
@@ -196,17 +212,18 @@ export default function DashboardPage() {
               <button onClick={() => setShowForm(false)} style={{ width: '28px', height: '28px', borderRadius: '50%', border: 'none', background: '#F5F5F5', cursor: 'pointer', fontSize: '14px', color: '#707070' }}>✕</button>
             </div>
             <form onSubmit={handleSave}>
-              {[
-                { label: 'Nome da Obra', key: 'nome', type: 'text', placeholder: 'Ex: Hotel Grand Splendor', required: true },
-                { label: 'Cidade / Estado', key: 'local', type: 'text', placeholder: 'Ex: São Paulo, SP', required: false },
-              ].map(field => (
-                <div key={field.key} style={{ marginBottom: '16px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#707070', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: '6px' }}>{field.label}</div>
-                  <input type={field.type} required={field.required} placeholder={field.placeholder}
-                    value={(form as any)[field.key]} onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
-                    style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #E8E8E8', borderRadius: '12px', fontFamily: 'inherit', fontSize: '14px', outline: 'none' }} />
-                </div>
-              ))}
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: '#707070', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: '6px' }}>Nome da Obra</div>
+                <input type="text" required placeholder="Ex: Hotel Grand Splendor"
+                  value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
+                  style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #E8E8E8', borderRadius: '12px', fontFamily: 'inherit', fontSize: '14px', outline: 'none' }} />
+              </div>
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: '#707070', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: '6px' }}>Cidade / Estado</div>
+                <input type="text" placeholder="Ex: São Paulo, SP"
+                  value={form.local} onChange={e => setForm(f => ({ ...f, local: e.target.value }))}
+                  style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #E8E8E8', borderRadius: '12px', fontFamily: 'inherit', fontSize: '14px', outline: 'none' }} />
+              </div>
               <div style={{ marginBottom: '16px' }}>
                 <div style={{ fontSize: '11px', fontWeight: 600, color: '#707070', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: '6px' }}>Tipo de Obra</div>
                 <select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}
@@ -217,16 +234,16 @@ export default function DashboardPage() {
                 </select>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
-                {[
-                  { label: 'Data de Início', key: 'data_inicio' },
-                  { label: 'Previsão de Entrega', key: 'data_entrega' },
-                ].map(field => (
-                  <div key={field.key}>
-                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#707070', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: '6px' }}>{field.label}</div>
-                    <input type="date" value={(form as any)[field.key]} onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
-                      style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #E8E8E8', borderRadius: '12px', fontFamily: 'inherit', fontSize: '14px', outline: 'none' }} />
-                  </div>
-                ))}
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#707070', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: '6px' }}>Data de Início</div>
+                  <input type="date" value={form.data_inicio} onChange={e => setForm(f => ({ ...f, data_inicio: e.target.value }))}
+                    style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #E8E8E8', borderRadius: '12px', fontFamily: 'inherit', fontSize: '14px', outline: 'none' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#707070', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: '6px' }}>Previsão de Entrega</div>
+                  <input type="date" value={form.data_entrega} onChange={e => setForm(f => ({ ...f, data_entrega: e.target.value }))}
+                    style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #E8E8E8', borderRadius: '12px', fontFamily: 'inherit', fontSize: '14px', outline: 'none' }} />
+                </div>
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button type="button" onClick={() => setShowForm(false)}
@@ -234,7 +251,7 @@ export default function DashboardPage() {
                   Cancelar
                 </button>
                 <button type="submit" disabled={saving}
-                  style={{ flex: 2, padding: '12px', borderRadius: '12px', border: 'none', background: '#1A1A1A', color: '#fff', fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+                  style={{ flex: 2, padding: '12px', borderRadius: '12px', border: 'none', background: saving ? '#A0A0A0' : '#1A1A1A', color: '#fff', fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer' }}>
                   {saving ? 'Salvando...' : 'Cadastrar Obra'}
                 </button>
               </div>
