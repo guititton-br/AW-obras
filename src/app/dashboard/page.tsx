@@ -17,9 +17,41 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<Obra | null>(null)
+  const [editObra, setEditObra] = useState<Obra | null>(null)
+  const [editForm, setEditForm] = useState({ nome: '', tipo: 'Hotel', local: '', data_inicio: '', data_entrega: '', pct_avanco: 0 })
   const [form, setForm] = useState({ nome: '', tipo: 'Hotel', local: '', data_inicio: '', data_entrega: '' })
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+
+  useEffect(() => {
+    if (editObra) {
+      setEditForm({
+        nome: editObra.nome,
+        tipo: editObra.tipo,
+        local: editObra.local || '',
+        data_inicio: '',
+        data_entrega: editObra.data_entrega ? editObra.data_entrega.split('T')[0] : '',
+        pct_avanco: editObra.pct_avanco,
+      })
+    }
+  }, [editObra])
+
+  async function handleEdit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editObra) return
+    setSaving(true)
+    const supabase = createClient()
+    const { error } = await supabase.from('obras').update({
+      nome: editForm.nome,
+      tipo: editForm.tipo,
+      local: editForm.local,
+      data_entrega: editForm.data_entrega || null,
+      pct_avanco: editForm.pct_avanco,
+    }).eq('id', editObra.id)
+    if (error) { alert('Erro: ' + error.message) }
+    else { setEditObra(null); loadObras() }
+    setSaving(false)
+  }
 
   useEffect(() => { loadObras() }, [])
 
@@ -168,12 +200,24 @@ export default function DashboardPage() {
                             <div style={{ fontSize: '32px', fontWeight: 700, color: statusColor(obra.pct_avanco) }}>{obra.pct_avanco}%</div>
                             <div style={{ fontSize: '10px', color: '#A0A0A0', textTransform: 'uppercase' }}>Avanço</div>
                           </div>
-                          <button
-                            onClick={() => setConfirmDelete(obra)}
-                            title="Deletar obra"
-                            style={{ width: '28px', height: '28px', borderRadius: '50%', border: 'none', background: '#FDECEA', color: '#D95F5F', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '4px' }}>
-                            🗑
-                          </button>
+                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                            <button onClick={() => setEditObra(obra)} title="Editar obra"
+                              style={{ width: '28px', height: '28px', borderRadius: '50%', border: 'none', background: '#F5F5F5', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#707070" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                              </svg>
+                            </button>
+                            <button onClick={() => setConfirmDelete(obra)} title="Deletar obra"
+                              style={{ width: '28px', height: '28px', borderRadius: '50%', border: 'none', background: '#FDECEA', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D95F5F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="3 6 5 6 21 6"/>
+                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                                <path d="M10 11v6M14 11v6"/>
+                                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                       </div>
                       <div style={{ height: '3px', background: '#F5F5F5', borderRadius: '2px', overflow: 'hidden', marginBottom: '10px' }}>
@@ -279,6 +323,66 @@ export default function DashboardPage() {
                 {deleting ? 'Deletando...' : 'Sim, deletar'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* MODAL EDITAR OBRA */}
+      {editObra && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={e => e.target === e.currentTarget && setEditObra(null)}>
+          <div style={{ background: '#fff', borderRadius: '20px', padding: '32px', width: '100%', maxWidth: '480px', boxShadow: '0 20px 60px rgba(0,0,0,.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+              <div>
+                <div style={{ fontSize: '18px', fontWeight: 700, color: '#1A1A1A' }}>Editar Obra</div>
+                <div style={{ fontSize: '13px', color: '#A0A0A0', marginTop: '2px' }}>Atualize os dados desta obra</div>
+              </div>
+              <button onClick={() => setEditObra(null)} style={{ width: '28px', height: '28px', borderRadius: '50%', border: 'none', background: '#F5F5F5', cursor: 'pointer', fontSize: '14px', color: '#707070' }}>✕</button>
+            </div>
+            <form onSubmit={handleEdit}>
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: '#707070', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: '6px' }}>Nome da Obra</div>
+                <input type="text" required value={editForm.nome} onChange={e => setEditForm(f => ({ ...f, nome: e.target.value }))}
+                  style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #E8E8E8', borderRadius: '12px', fontFamily: 'inherit', fontSize: '14px', outline: 'none' }} />
+              </div>
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: '#707070', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: '6px' }}>Cidade / Estado</div>
+                <input type="text" value={editForm.local} onChange={e => setEditForm(f => ({ ...f, local: e.target.value }))}
+                  style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #E8E8E8', borderRadius: '12px', fontFamily: 'inherit', fontSize: '14px', outline: 'none' }} />
+              </div>
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: '#707070', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: '6px' }}>Tipo de Obra</div>
+                <select value={editForm.tipo} onChange={e => setEditForm(f => ({ ...f, tipo: e.target.value }))}
+                  style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #E8E8E8', borderRadius: '12px', fontFamily: 'inherit', fontSize: '14px', outline: 'none', background: '#fff' }}>
+                  {['Hotel', 'Corporativo', 'Residencial', 'Retrofit', 'Varejo', 'Saúde', 'Industrial', 'Outro'].map(t => (
+                    <option key={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#707070', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: '6px' }}>Previsão de Entrega</div>
+                  <input type="date" value={editForm.data_entrega} onChange={e => setEditForm(f => ({ ...f, data_entrega: e.target.value }))}
+                    style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #E8E8E8', borderRadius: '12px', fontFamily: 'inherit', fontSize: '14px', outline: 'none' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#707070', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: '6px' }}>Avanço (%)</div>
+                  <input type="number" min="0" max="100" value={editForm.pct_avanco} onChange={e => setEditForm(f => ({ ...f, pct_avanco: parseInt(e.target.value) || 0 }))}
+                    style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #E8E8E8', borderRadius: '12px', fontFamily: 'inherit', fontSize: '14px', outline: 'none' }} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button type="button" onClick={() => setEditObra(null)}
+                  style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid #E8E8E8', background: '#F5F5F5', fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, color: '#707070', cursor: 'pointer' }}>
+                  Cancelar
+                </button>
+                <button type="submit" disabled={saving}
+                  style={{ flex: 2, padding: '12px', borderRadius: '12px', border: 'none', background: saving ? '#A0A0A0' : '#1A1A1A', color: '#fff', fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer' }}>
+                  {saving ? 'Salvando...' : 'Salvar alterações'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
