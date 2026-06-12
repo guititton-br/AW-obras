@@ -130,38 +130,35 @@ export default function ReuniaoDisciplina() {
     return () => { try { document.head.removeChild(l); } catch {} };
   }, []);
 
-  // Auth — tenta sessão do storage, fallback para getUser, e listener pra hidratar
+  // Auth — não força redirect; libera a tela e mostra status real na sidebar
   useEffect(() => {
     let mounted = true;
 
-    const checkAuth = async () => {
+    const tryLoad = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        if (mounted) {
-          setUserEmail(session.user.email || '');
-          setAuthLoading(false);
-        }
+      if (session && mounted) {
+        setUserEmail(session.user.email || '');
+        setAuthLoading(false);
         return;
       }
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        if (mounted) {
-          setUserEmail(user.email || '');
-          setAuthLoading(false);
-        }
+      if (user && mounted) {
+        setUserEmail(user.email || '');
+        setAuthLoading(false);
         return;
       }
-      if (mounted) window.location.href = '/login';
+      if (mounted) {
+        setUserEmail('(não autenticado)');
+        setAuthLoading(false);
+        console.warn('[AW] Sessão não encontrada — carregando sem auth');
+      }
     };
 
-    checkAuth();
+    tryLoad();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
-      if (session) {
-        setUserEmail(session.user.email || '');
-        setAuthLoading(false);
-      }
+      if (session) setUserEmail(session.user.email || '');
     });
 
     return () => { mounted = false; subscription.unsubscribe(); };
