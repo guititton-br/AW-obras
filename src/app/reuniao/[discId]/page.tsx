@@ -2,21 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  'https://fnudhxpolvxvezoglvrk.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZudWRoeHBvbHZ4dmV6b2dsdnJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNjUxMjksImV4cCI6MjA5NTY0MTEyOX0.G7dG8p004-3ISaslEAI0m6UuCPjZjFwmdANOBMtCll4',
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-      storageKey: 'sb-fnudhxpolvxvezoglvrk-auth-token',
-      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-    },
-  }
-);
+import { createClient } from '@/lib/supabase/client';
 
 // ─────────── CONSTANTS ───────────
 const C = {
@@ -76,6 +62,7 @@ function weekToMonday(week: number, year: number) {
 
 // ─────────── COMPONENT ───────────
 export default function ReuniaoDisciplina() {
+  const supabase = createClient();
   const params = useParams() as { discId: string };
   const searchParams = useSearchParams();
   const discId = params.discId;
@@ -139,43 +126,26 @@ export default function ReuniaoDisciplina() {
     return () => { try { document.head.removeChild(l); } catch {} };
   }, []);
 
-  // Auth — retry de getSession + listener; sem redirect forçado
+  // Auth — usando client compartilhado do projeto (igual ao Hub)
   useEffect(() => {
     let mounted = true;
 
-    const tryGetSession = async (attempt = 0): Promise<boolean> => {
+    (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session && mounted) {
         setUserEmail(session.user.email || '');
         setAuthLoading(false);
-        return true;
+        return;
       }
-      if (attempt < 5) {
-        await new Promise(r => setTimeout(r, 150));
-        return tryGetSession(attempt + 1);
-      }
-      return false;
-    };
-
-    const tryGetUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user && mounted) {
         setUserEmail(user.email || '');
         setAuthLoading(false);
-        return true;
+        return;
       }
-      return false;
-    };
-
-    (async () => {
-      const okSession = await tryGetSession();
-      if (okSession) return;
-      const okUser = await tryGetUser();
-      if (okUser) return;
       if (mounted) {
-        setUserEmail('(não autenticado)');
-        setAuthLoading(false);
-        console.warn('[AW] Sessão não encontrada após retries');
+        console.warn('[AW] Sessão não encontrada — redirecionando para login');
+        window.location.href = '/login';
       }
     })();
 
@@ -188,6 +158,7 @@ export default function ReuniaoDisciplina() {
     });
 
     return () => { mounted = false; subscription.unsubscribe(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Load data
@@ -235,11 +206,24 @@ export default function ReuniaoDisciplina() {
           setMestres(ms || []);
         } catch { setMestres([]); }
 
-        // pendencias da obra/disciplina
+        // pendencias da semana passada (não resolvidas) — via join com planos_semanais
         try {
-          const { data: pends } = await supabase.from('pendencias').select('*').eq('obra_id', obraId).eq('disciplina_id', discId);
-          setPendencias(pends || []);
-        } catch { setPendencias([]); }
+          const { data: pends } = await supabase
+            .from('pendencias')
+            .select('*, planos_semanais!inner(obra_id, disciplina_id, subitem_id, setor_id, semana, ano)')
+            .eq('planos_semanais.obra_id', obraId)
+            .eq('planos_semanais.disciplina_id', discId)
+            .eq('planos_semanais.semana', semana - 1)
+            .eq('planos_semanais.ano', ano)
+            .eq('resolvida', false);
+          // Flatten: trazer subitem_id e setor_id pra raiz pra simplificar uso
+          const flat = (pends || []).map((p: any) => ({
+            ...p,
+            subitem_id: p.planos_semanais?.subitem_id,
+            setor_id: p.planos_semanais?.setor_id,
+          }));
+          setPendencias(flat);
+        } catch (e) { console.warn('Pendências:', e); setPendencias([]); }
 
         // seleção inicial
         if (subs && subs[0]) setCurSubId(subs[0].id);
