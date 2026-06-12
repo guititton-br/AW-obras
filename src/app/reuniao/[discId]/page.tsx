@@ -130,14 +130,41 @@ export default function ReuniaoDisciplina() {
     return () => { try { document.head.removeChild(l); } catch {} };
   }, []);
 
-  // Auth
+  // Auth — tenta sessão do storage, fallback para getUser, e listener pra hidratar
   useEffect(() => {
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) { window.location.href = '/login'; return; }
-      setUserEmail(data.session.user.email || '');
-      setAuthLoading(false);
-    })();
+    let mounted = true;
+
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        if (mounted) {
+          setUserEmail(session.user.email || '');
+          setAuthLoading(false);
+        }
+        return;
+      }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        if (mounted) {
+          setUserEmail(user.email || '');
+          setAuthLoading(false);
+        }
+        return;
+      }
+      if (mounted) window.location.href = '/login';
+    };
+
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+      if (session) {
+        setUserEmail(session.user.email || '');
+        setAuthLoading(false);
+      }
+    });
+
+    return () => { mounted = false; subscription.unsubscribe(); };
   }, []);
 
   // Load data
