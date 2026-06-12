@@ -6,7 +6,16 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
   'https://fnudhxpolvxvezoglvrk.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZudWRoeHBvbHZ4dmV6b2dsdnJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNjUxMjksImV4cCI6MjA5NTY0MTEyOX0.G7dG8p004-3ISaslEAI0m6UuCPjZjFwmdANOBMtCll4'
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZudWRoeHBvbHZ4dmV6b2dsdnJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNjUxMjksImV4cCI6MjA5NTY0MTEyOX0.G7dG8p004-3ISaslEAI0m6UuCPjZjFwmdANOBMtCll4',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storageKey: 'sb-fnudhxpolvxvezoglvrk-auth-token',
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    },
+  }
 );
 
 // ─────────── CONSTANTS ───────────
@@ -130,35 +139,52 @@ export default function ReuniaoDisciplina() {
     return () => { try { document.head.removeChild(l); } catch {} };
   }, []);
 
-  // Auth — não força redirect; libera a tela e mostra status real na sidebar
+  // Auth — retry de getSession + listener; sem redirect forçado
   useEffect(() => {
     let mounted = true;
 
-    const tryLoad = async () => {
+    const tryGetSession = async (attempt = 0): Promise<boolean> => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session && mounted) {
         setUserEmail(session.user.email || '');
         setAuthLoading(false);
-        return;
+        return true;
       }
+      if (attempt < 5) {
+        await new Promise(r => setTimeout(r, 150));
+        return tryGetSession(attempt + 1);
+      }
+      return false;
+    };
+
+    const tryGetUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user && mounted) {
         setUserEmail(user.email || '');
         setAuthLoading(false);
-        return;
+        return true;
       }
+      return false;
+    };
+
+    (async () => {
+      const okSession = await tryGetSession();
+      if (okSession) return;
+      const okUser = await tryGetUser();
+      if (okUser) return;
       if (mounted) {
         setUserEmail('(não autenticado)');
         setAuthLoading(false);
-        console.warn('[AW] Sessão não encontrada — carregando sem auth');
+        console.warn('[AW] Sessão não encontrada após retries');
       }
-    };
-
-    tryLoad();
+    })();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
-      if (session) setUserEmail(session.user.email || '');
+      if (session) {
+        setUserEmail(session.user.email || '');
+        setAuthLoading(false);
+      }
     });
 
     return () => { mounted = false; subscription.unsubscribe(); };
