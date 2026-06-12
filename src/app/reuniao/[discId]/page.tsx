@@ -4,6 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
+// ─────────── CONFIG ───────────
+const HISTORICAL_WINDOW_WEEKS = 4; // janela pra cálculo de produtividade real histórica (ajustável)
+const DEFAULT_PROD_FALLBACK = 2;   // produtividade padrão se o subitem não tiver cadastrada
+
 // ─────────── CONSTANTS ───────────
 const C = {
   bg:'#F5F5F5', white:'#FFFFFF', surf:'#FAFAFA',
@@ -246,8 +250,10 @@ export default function ReuniaoDisciplina() {
     const init: Record<string, AndarState> = {};
     subitens.forEach(s => setores.forEach(se => {
       const k = s.id + '-' + se.id;
+      // pré-popula com produtividade de referência cadastrada no subitem
+      const refProd = Number(s.quartos_por_equipe_dia) || DEFAULT_PROD_FALLBACK;
       init[k] = {
-        efEq: 2, efProd: 2, mestreId: null,
+        efEq: 1, efProd: refProd, mestreId: null,
         dist: { 0:[],1:[],2:[],3:[],4:[] }, unassigned: [],
         calStart: monday, calEnd: friday,
         postponeReasons: [], postponeObs: '',
@@ -706,17 +712,53 @@ export default function ReuniaoDisciplina() {
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'7px 0', borderBottom:`1px solid ${C.b150}` }}>
                   <div>
                     <div style={{ fontSize:12, fontWeight:500, color:C.b900 }}>Equipes</div>
-                    <div style={{ fontSize:10, color:C.b400, marginTop:1 }}>Fornecedor declara</div>
+                    <div style={{ fontSize:10, color:C.b400, marginTop:1 }}>acordado nesta reunião</div>
                   </div>
-                  <Stepper value={st?.efEq || 2} onChange={d => chEf('eq', d)} />
+                  <Stepper value={st?.efEq || 1} onChange={d => chEf('eq', d)} />
                 </div>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'7px 0' }}>
                   <div>
                     <div style={{ fontSize:12, fontWeight:500, color:C.b900 }}>Quartos/equipe/dia</div>
-                    <div style={{ fontSize:10, color:C.b400, marginTop:1 }}>Produtividade declarada</div>
+                    <div style={{ fontSize:10, color:C.b400, marginTop:1 }}>acordado nesta reunião</div>
                   </div>
-                  <Stepper value={st?.efProd || 2} onChange={d => chEf('prod', d)} />
+                  <Stepper value={st?.efProd || DEFAULT_PROD_FALLBACK} onChange={d => chEf('prod', d)} />
                 </div>
+
+                {/* Produtividade — referência e real histórico */}
+                {curSub && (
+                  <div style={{ padding:'9px 10px', background:C.b100, borderRadius:8, marginTop:8, border:`1px solid ${C.b150}` }}>
+                    {(() => {
+                      const ref = Number(curSub.quartos_por_equipe_dia) || DEFAULT_PROD_FALLBACK;
+                      const acord = st?.efProd || ref;
+                      const diff = acord - ref;
+                      return (
+                        <>
+                          <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, marginBottom:5 }}>
+                            <div style={{ color:C.b500 }}>📋 Referência</div>
+                            <div style={{ fontWeight:600, color:C.b700 }}>{ref} qt/dia</div>
+                          </div>
+                          {diff !== 0 && (
+                            <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, marginBottom:5 }}>
+                              <div style={{ color: diff>0 ? C.gd : C.ad }}>
+                                {diff>0 ? '↑' : '↓'} Variação acordada
+                              </div>
+                              <div style={{ fontWeight:600, color: diff>0 ? C.gd : C.ad }}>
+                                {diff>0?'+':''}{diff} qt/dia
+                              </div>
+                            </div>
+                          )}
+                          <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, paddingTop:5, borderTop:`1px solid ${C.b200}`, marginTop:3 }}>
+                            <div style={{ color:C.b500 }}>📊 Real histórico</div>
+                            <div style={{ fontWeight:500, color:C.b400, fontStyle:'italic' }}>aguardando reporte</div>
+                          </div>
+                          <div style={{ fontSize:9, color:C.b400, marginTop:3, textAlign:'right' }}>
+                            janela: {HISTORICAL_WINDOW_WEEKS} semanas
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
 
                 {/* Capacidade IA */}
                 {cap && (
